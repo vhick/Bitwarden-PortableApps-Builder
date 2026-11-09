@@ -60,7 +60,7 @@ def find_app(temp:pathlib.Path,dst:pathlib.Path):
 
 def get_official_text(commit:str,file:str):
     url=f'https://raw.githubusercontent.com/bitwarden/clients/{commit}/{file}'
-    with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'Bitwarden-PortableApps-Builder-b1r1'}),timeout=45) as r:
+    with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'Bitwarden-PortableApps-Builder-b1r2'}),timeout=45) as r:
         data=r.read(2*1024*1024)
     return data.decode('utf-8')
 
@@ -84,7 +84,7 @@ def stage(identity_file:pathlib.Path,download_dir:pathlib.Path,work_dir:pathlib.
     shutil.copy2(launch_exe,launcher)
     for rel in ['Data/Profile','Data/Temp','Data/TraceGuard','Other/Source','App/AppInfo']:
         (root/rel).mkdir(parents=True,exist_ok=True)
-    ini=f'''[Format]\nType=PortableApps.comFormat\nVersion=3.8\n\n[Details]\nName=Bitwarden Desktop Portable (Community)\nAppID=BitwardenDesktopCommunityPortable\nPublisher=Bitwarden Inc. (application); community builder (launcher)\nHomepage=https://github.com/bitwarden/clients\nCategory=Security\nDescription=Unofficial PortableApps-style package of the official Bitwarden Desktop app\nLanguage=Multilingual\n\n[License]\nShareable=true\nOpenSource=true\nFreeware=true\nCommercialUse=true\n\n[Version]\nPackageVersion={info['version']}.0\nDisplayVersion={info['version']} Community b1r1\n\n[Control]\nIcons=1\nStart=BitwardenPortable.exe\n'''
+    ini=f'''[Format]\nType=PortableApps.comFormat\nVersion=3.8\n\n[Details]\nName=Bitwarden Desktop Portable (Community)\nAppID=BitwardenDesktopCommunityPortable\nPublisher=Bitwarden Inc. (application); community builder (launcher)\nHomepage=https://github.com/bitwarden/clients\nCategory=Security\nDescription=Unofficial PortableApps-style package of the official Bitwarden Desktop app\nLanguage=Multilingual\n\n[License]\nShareable=true\nOpenSource=true\nFreeware=true\nCommercialUse=true\n\n[Version]\nPackageVersion={info['version']}.0\nDisplayVersion={info['version']} Community b1r2\n\n[Control]\nIcons=1\nStart=BitwardenPortable.exe\n'''
     (root/'App'/'AppInfo'/'appinfo.ini').write_text(ini,encoding='utf-8')
     # Source tree is not modified; preserve vendor license and source location.
     for filename in ('LICENSE.txt','LICENSE_GPL.txt','LICENSE_BITWARDEN.txt'):

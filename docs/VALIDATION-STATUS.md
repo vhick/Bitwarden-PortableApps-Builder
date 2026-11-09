@@ -1,4 +1,4 @@
-# Builder b1r1 validation status — 2026-11-09
+# Builder b1r2 validation status — 2026-11-09
 
 This status applies to the **builder kit files** prepared in this environment, not to a finished Bitwarden PortableApps release.
 
@@ -31,3 +31,10 @@ Do not claim that vault/profile portability, full ShellGuard cleanup, Bitwarden 
 - An interrupted run with ambiguous HKCU changes is preserved for review under `Data/TraceGuard` instead of deleted.
 - The official vendor's portable executable archive layout and helper files may change in newer releases; the builder is designed to fail closed, not silently omit functionality.
 - This is a community package and is not signed/certified by PortableApps.com or Bitwarden Inc.
+
+## b1r2 repair evidence (2026-11-09)
+
+- **SOURCE-INSPECTED:** `vhick/Portable-Package-Builder@v1.0.0` `scripts/common.ps1` implements `Test-RelativeEXE`, which requires Windows backslash-separated relative paths. The `scripts/build.ps1` failure condition matches the exact uploaded b1r1 log.
+- **LOG-OBSERVED:** b1r1 compiled a real Windows x64 launcher, staged Bitwarden 2026.10.4, independently ZIP-validated the package, installed NSIS, and released ZIP-only. The installer action failed before NSIS compilation because `running-exe` contained forward slashes. Final job failure was deliberate partial-status reporting.
+- **STATIC-VALIDATED:** b1r2 fixes both workflows and adds a regression test verifying the exact backslash path against the pinned action's validation pattern. Run `python -m unittest discover -s tests -v` to reproduce.
+- **NOT YET VERIFIED:** b1r2 installer creation, installer execution on Windows, upgrades, GUI vault/profile functionality, and browser/notification integration. No assertion of completed Windows end-to-end tests.

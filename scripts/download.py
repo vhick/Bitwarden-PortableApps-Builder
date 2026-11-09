@@ -13,7 +13,7 @@ def download(identity:pathlib.Path,outdir:pathlib.Path):
     if dest.is_file() and hashlib.sha256(dest.read_bytes()).hexdigest()==info['asset_sha256']:
         print('Official download already verified:',dest);return dest
     tmp=dest.with_suffix('.partial'); sha=hashlib.sha256(); size=0
-    req=urllib.request.Request(info['asset_url'],headers={'User-Agent':'Bitwarden-PortableApps-Builder-b1r1','Accept':'application/octet-stream'})
+    req=urllib.request.Request(info['asset_url'],headers={'User-Agent':'Bitwarden-PortableApps-Builder-b1r2','Accept':'application/octet-stream'})
     try:
         with urllib.request.urlopen(req,timeout=150) as response, tmp.open('wb') as f:
             for chunk in iter(lambda:response.read(4*1024*1024),b''):

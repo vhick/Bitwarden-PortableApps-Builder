@@ -46,6 +46,20 @@ class PackageContract(unittest.TestCase):
         self.assertIn('dry-run:',workflow)
         self.assertIn('if: steps.preflight.outputs.exists',workflow)
         self.assertNotIn('engine: official',workflow)
+    def test_shared_package_builder_running_exe_windows_relative_path(self):
+        """Regression: v1.0.0 shared action rejects forward-slash running-exe paths."""
+        import re
+        action_pattern = re.compile(r"^(?!.*(?:^|[\\/])\.\.(?:[\\/]|$))[A-Za-z0-9_.+ -]+(?:\\[A-Za-z0-9_.+ -]+)*\.exe$")
+        for file in ['build-portableapps.yml', 'installer-from-validated-zip.yml']:
+            with self.subTest(workflow=file):
+                workflow=(ROOT/'.github'/'workflows'/file).read_text(encoding='utf-8')
+                match=re.search(r"(?m)^\s*running-exe:\s*(.+?)\s*$", workflow)
+                self.assertIsNotNone(match, 'The shared action must receive a running-exe input')
+                value=match.group(1).strip().strip("'\"")
+                self.assertEqual(value, r'App\Bitwarden\Bitwarden.exe')
+                self.assertIsNotNone(action_pattern.fullmatch(value), 'Shared v1.0.0 requires backslash separators')
+                self.assertNotIn('running-exe: App/Bitwarden/Bitwarden.exe', workflow)
+
     def test_pe_arch_rejects_non_pe(self):
         with tempfile.TemporaryDirectory() as td:
             p=pathlib.Path(td)/'fake.exe';p.write_bytes(b'MZ'+b'\0'*64)

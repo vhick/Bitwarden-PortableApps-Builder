@@ -107,9 +107,9 @@ jobs:
           source-dir: work/BitwardenPortable
           output-dir: dist
           engine: custom-nsis
-          running-exe: App/Bitwarden/Bitwarden.exe
+          running-exe: 'App\Bitwarden\Bitwarden.exe'
           timeout-seconds: '1800'
-          package-revision: b1r1
+          package-revision: b1r2
 
       - name: Independently verify shared installer file and embedded payload
         if: steps.preflight.outputs.exists != 'true' && steps.installer.outcome == 'success'
@@ -134,7 +134,7 @@ jobs:
         with:
           files: 'dist/*.zip;dist/*.paf.exe'
           tag: ${{ steps.preflight.outputs.tag }}
-          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r1 (ZIP + installer)'
+          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r2 (ZIP + installer)'
           keep-releases: '3'
           prune: 'false'
           dry-run: 'true'
@@ -145,7 +145,7 @@ jobs:
         with:
           files: 'dist/*.zip;dist/*.paf.exe'
           tag: ${{ steps.preflight.outputs.tag }}
-          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r1 (ZIP + installer)'
+          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r2 (ZIP + installer)'
           keep-releases: '3'
           prune: 'false'
           dry-run: 'false'
@@ -156,7 +156,7 @@ jobs:
         with:
           files: 'dist/*.zip'
           tag: ${{ steps.preflight.outputs.tag }}
-          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r1 (ZIP only - installer not verified)'
+          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r2 (ZIP only - installer not verified)'
           keep-releases: '3'
           prune: 'false'
           dry-run: 'true'
@@ -167,7 +167,7 @@ jobs:
         with:
           files: 'dist/*.zip'
           tag: ${{ steps.preflight.outputs.tag }}
-          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r1 (ZIP only - installer not verified)'
+          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r2 (ZIP only - installer not verified)'
           keep-releases: '3'
           prune: 'false'
           dry-run: 'false'

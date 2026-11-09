@@ -40,7 +40,7 @@ def validate(root:pathlib.Path,identity:pathlib.Path):
 
 def produce_zip(root:pathlib.Path,dist:pathlib.Path,version:str,buildsha:str):
     dist.mkdir(exist_ok=True,parents=True)
-    name=f'BitwardenPortable_{version}_x64_b1r1_{buildsha[:8]}.zip'
+    name=f'BitwardenPortable_{version}_x64_b1r2_{buildsha[:8]}.zip'
     out=dist/name
     with zipfile.ZipFile(out,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=6,allowZip64=True) as z:
         for child in sorted(root.rglob('*')):

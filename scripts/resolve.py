@@ -11,7 +11,7 @@ ASSET=re.compile(r'^Bitwarden-Portable-(\d+\.\d+\.\d+)\.exe$')
 def request(url: str, binary=False):
     if not url.startswith('https://api.github.com/') and not url.startswith('https://raw.githubusercontent.com/bitwarden/clients/'):
         raise ValueError('Unexpected source host: '+url)
-    headers={'Accept':'application/vnd.github+json','User-Agent':'Bitwarden-PortableApps-Builder-b1r1','X-GitHub-Api-Version':'2022-11-28'}
+    headers={'Accept':'application/vnd.github+json','User-Agent':'Bitwarden-PortableApps-Builder-b1r2','X-GitHub-Api-Version':'2022-11-28'}
     if os.environ.get('GITHUB_TOKEN'):
         headers['Authorization']='Bearer '+os.environ['GITHUB_TOKEN']
     try:
@@ -68,7 +68,7 @@ def resolve(version:str, output:pathlib.Path):
           'asset_filename':exact,'distribution_flavor':'upstream-noncommercial-OSS-asset','asset_url':url,'asset_sha256':digest.split(':',1)[1].lower(),
           'asset_size':asset.get('size'), 'release_id':release['id'],
           'release_published_at':release.get('published_at'),
-          'builder_revision':'b1r1','package_revision':'b1r1',
+          'builder_revision':'b1r2','package_revision':'b1r2',
           'package_builder':'vhick/Portable-Package-Builder@v1.0.0',
           'release_publisher':'vhick/portable-release-publisher@v1.1.1'}
     output.parent.mkdir(parents=True,exist_ok=True)

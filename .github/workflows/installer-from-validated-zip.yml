@@ -82,9 +82,9 @@ jobs:
           source-dir: work/stage/BitwardenPortable
           output-dir: dist
           engine: custom-nsis
-          running-exe: App/Bitwarden/Bitwarden.exe
+          running-exe: 'App\Bitwarden\Bitwarden.exe'
           timeout-seconds: '1800'
-          package-revision: b1r1-pkgonly
+          package-revision: b1r2-pkgonly
       - name: Verify compiled installer and embedded payload
         env:
           INSTALL_FILE: ${{ steps.installer.outputs.installer-file }}

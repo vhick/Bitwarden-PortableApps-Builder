@@ -25,6 +25,10 @@
 - Browser integration intermittently fails: `com.8bit.bitwarden` can collide with an installed Bitwarden instance. Verify source-evidenced HKCU keys and `Data/Profile/browsers` and run acceptance tests; don't broadly delete installed browser configurations.
 - Persistent stale shortcut/notification caches: source ownership has not been proved; preserve ambiguous host entries and record findings for a targeted future fix. Do not recursively clean the Start Menu, Roaming, LocalAppData or registry.
 
+## b1r1 installer path failure fixed in b1r2
+
+The November 9 b1r1 run reached the pinned installer action, but its `Test-RelativeEXE` rejected `App/Bitwarden/Bitwarden.exe`. Use the fixed form `running-exe: 'App\Bitwarden\Bitwarden.exe'` in **both** workflows. This is a parameter-format requirement of the pinned shared action, not a missing file or Bitwarden fault. Do not edit the pinned action or disable the running-process check. The b1r2 regression suite verifies both paths. A previously published b1r1 ZIP can be reused by the packaging-only workflow; see README.
+
 ## Failure: installer or release
 
 - Installer failed but ZIP succeeded: the run correctly marks **partial failure**. The publisher can release the validated ZIP; check the shared Package Builder step and use optional packaging-only workflow to build a later installer without rebuilding Bitwarden.

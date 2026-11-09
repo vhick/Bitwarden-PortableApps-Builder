@@ -1,4 +1,4 @@
-# Bitwarden Desktop PortableApps Builder b1r1
+# Bitwarden Desktop PortableApps Builder b1r2
 
 **Mode: PORTABLEAPPS only.** This repository is an independent community build kit, not a fork of Bitwarden and not an official Bitwarden or PortableApps.com release.
 
@@ -21,8 +21,8 @@ No PAT, paid runner, upstream fork, local compiler, manual installation or GUI-d
 
 ## Output packages
 
-- `BitwardenPortable_VERSION_x64_b1r1_BUILDER8.zip` (independent ready-to-extract PortableApps directory).
-- `BitwardenPortable_VERSION.0_custom-nsis-b1r1.paf.exe` (PortableApps-style NSIS installer; **not the official PortableApps.com Installer**).
+- `BitwardenPortable_VERSION_x64_b1r2_BUILDER8.zip` (independent ready-to-extract PortableApps directory).
+- `BitwardenPortable_VERSION.0_custom-nsis-b1r2.paf.exe` (PortableApps-style NSIS installer; **not the official PortableApps.com Installer**).
 - `SHA256SUMS.txt` released by the pinned publisher.
 
 Both artifacts are emitted from your **own builder repository's Releases**, never from the upstream Bitwarden repository. The release tag includes the Bitwarden version and builder Git commit prefix to avoid identity collision.
@@ -58,7 +58,7 @@ The custom NSIS installer from the pinned shared builder leaves `Data` intact du
 1. On GitHub.com, create a **new empty repository**, for example `Bitwarden-PortableApps-Builder`. It must not be a fork of `bitwarden/clients`. Choose **private** if you do not wish to publish the finished packages publicly. The GitHub Release publisher obeys the repository visibility.
 2. Clone your new repository using **GitHub Desktop**. No command-line Git initialization is needed.
 3. Extract this builder kit ZIP and copy **all its contents** into the root of the cloned repository. Make sure the hidden `.github/workflows/build-portableapps.yml` file is included. Do **not** copy a parent folder around the contents.
-4. In GitHub Desktop, enter a summary such as `Add Bitwarden Desktop PortableApps Builder b1r1`, click **Commit to main**, then **Push origin**.
+4. In GitHub Desktop, enter a summary such as `Add Bitwarden Desktop PortableApps Builder b1r2`, click **Commit to main**, then **Push origin**.
 5. On the GitHub website, open **Actions** and choose **Bitwarden Desktop - Build PortableApps ZIP and Installer**. Click **Run workflow**. Keep `version=latest` or enter the exact stable version, then run.
 6. Open the workflow run. Check **Resolve stable desktop release**, **Compile... NativeAOT**, **Validate independent ZIP**, **Build... installer**, and **Release** steps. A green CI job does **not** prove interactive Windows portability, notifications or installed-app coexistence.
 7. On the repository's **Releases** page, download the `.zip` or `.paf.exe`. The publisher also creates `SHA256SUMS.txt`. The `.zip` is valid even if an installer failure is reported; in that case the run is marked partial failure.
@@ -89,6 +89,18 @@ Pinned independently verified shared actions:
 - `vhick/portable-release-publisher@v1.1.1` = `cb64f86ac2d8c67506db5832de07f9ff58cbeaeb`.
 
 No source-built NATIVE product is generated. No official PortableApps.com installer/certification is claimed. No binaries have been compiled or interactive Bitwarden tests run by the authoring environment; GitHub Actions and a real Windows system must perform those checks.
+
+## b1r2 repair for the November 9, 2026 b1r1 installer failure
+
+**Observed result:** b1r1 compiled its Windows x64 root launcher, verified Bitwarden Desktop 2026.10.4, produced an independently checked ZIP, and published that ZIP. The pinned shared installer action rejected `running-exe: App/Bitwarden/Bitwarden.exe` because its `Test-RelativeEXE` contract allows only Windows **backslash** separators. The intentional last-step failure correctly reported partial success.
+
+**Changes:** Both full-build and packaging-only workflows now pass the exact source-evidenced form `running-exe: 'App\Bitwarden\Bitwarden.exe'`. A regression test protects both workflows. Package/builder revision was bumped to b1r2 without changing the vendor binary or profile recovery design.
+
+**Most economical repair:** The original validated b1r1 ZIP has already been published under tag `portable-bitwarden-v2026.10.4-b1r1-59bd9319` in the builder repository. After updating the repository to this b1r2 kit, run **Bitwarden - Packaging Only from Previously Validated ZIP**, using the original tag, original ZIP name (`BitwardenPortable_2026.10.4_x64_b1r1_59bd9319.zip`), the exact SHA-256 of that ZIP from the original run (`d54c7a6214540fc6f1832c62e356444fa113ddd840a55c6ddc6800813448e4a5`; confirm against the original release's `SHA256SUMS.txt`), and a new release tag such as `portable-bitwarden-installer-2026.10.4-b1r2-repair`. This recompiles neither Bitwarden nor the portable launcher; it validates the existing ZIP and invokes the pinned installer builder. The created installer is identified as a *packaging-only revision* of the original source build, not a new upstream build.
+
+**Alternative:** Run the complete `Bitwarden Desktop - Build PortableApps ZIP and Installer` workflow with `version=2026.10.4`. It rebuilds the launcher and stages the vendor image anew. The source identity remains anchored to the same upstream release, while the builder commit and package revision distinguish the new release. Because the original ZIP already exists, packaging-only is generally faster and saves GitHub minutes.
+
+**Verification boundary:** The shared action's raw `v1.0.0/scripts/common.ps1` and `build.ps1` were inspected; actual installer generation following this repair is **NOT YET VERIFIED**. Run the GitHub Actions workflow and test an installer on Windows before treating it as working.
 
 ## Optional: Packaging-only workflow
 
