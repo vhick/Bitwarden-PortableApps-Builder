@@ -1,0 +1,112 @@
+name: Bitwarden - Packaging Only from Previously Validated ZIP
+on:
+  workflow_dispatch:
+    inputs:
+      source_release_tag:
+        type: string
+        description: 'Existing release tag in THIS builder repo (portable-bitwarden-v...)'
+        required: true
+      source_zip_filename:
+        type: string
+        description: 'Exact BitwardenPortable_*.zip from source release'
+        required: true
+      source_zip_sha256:
+        type: string
+        description: 'Exact 64-character SHA256 from published SHA256SUMS.txt'
+        required: true
+      new_release_tag:
+        type: string
+        description: 'NEW tag beginning portable-bitwarden-installer-'
+        required: true
+
+permissions:
+  contents: read
+concurrency:
+  group: bitwarden-package-only-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate input, release name and duplicate tag
+        env:
+          SOURCE_TAG: ${{ inputs.source_release_tag }}
+          SOURCE_NAME: ${{ inputs.source_zip_filename }}
+          SOURCE_SHA: ${{ inputs.source_zip_sha256 }}
+          OUTPUT_TAG: ${{ inputs.new_release_tag }}
+        run: |
+          if ($env:SOURCE_TAG -notmatch '^portable-bitwarden-v[A-Za-z0-9_.-]+$') { throw 'Use only a release from this builder' }
+          if ($env:SOURCE_NAME -notmatch '^BitwardenPortable_[A-Za-z0-9_.-]+\.zip$') { throw 'Invalid original ZIP filename' }
+          if ($env:SOURCE_SHA -notmatch '^[0-9a-fA-F]{64}$') { throw 'SHA256 required' }
+          if ($env:OUTPUT_TAG -notmatch '^portable-bitwarden-installer-[A-Za-z0-9_.-]+$') { throw 'New installer tag invalid' }
+          $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/tags/$env:OUTPUT_TAG"
+          $r=Invoke-WebRequest -Uri $uri -Headers @{Authorization="Bearer $env:GH_TOKEN";Accept='application/vnd.github+json'} -SkipHttpErrorCheck -TimeoutSec 35
+          if ($r.StatusCode -eq 200) { throw 'Target release already exists; refusing overwrite' }
+          if ($r.StatusCode -ne 404) { throw "Release check failed HTTP $($r.StatusCode)" }
+      - name: Download prevalidated ZIP from calling repository
+        env:
+          SOURCE_TAG: ${{ inputs.source_release_tag }}
+          SOURCE_NAME: ${{ inputs.source_zip_filename }}
+        run: |
+          New-Item -ItemType Directory -Force work/download,work/stage,dist | Out-Null
+          gh release download "$env:SOURCE_TAG" --repo "$env:GITHUB_REPOSITORY" `
+            --pattern "$env:SOURCE_NAME" --dir work/download
+          if ($LASTEXITCODE -ne 0) { throw 'Previous builder release download failed' }
+          if (!(Test-Path -LiteralPath (Join-Path 'work/download' $env:SOURCE_NAME))) { throw 'Exact ZIP asset missing' }
+      - name: Verify original SHA-256 and unpack safely without any upstream rebuild
+        env:
+          SOURCE_NAME: ${{ inputs.source_zip_filename }}
+          SOURCE_SHA: ${{ inputs.source_zip_sha256 }}
+        run: |
+          python scripts/packaging_only.py --zip (Join-Path 'work/download' $env:SOURCE_NAME) `
+            --sha256 "$env:SOURCE_SHA" --destination work/stage
+          if ($LASTEXITCODE -ne 0) { throw 'Prior ZIP verification failed' }
+      - name: Build installer through pinned verified package builder
+        id: installer
+        uses: vhick/Portable-Package-Builder@0112c35580e83b37eb8757ebcb949274e1631a04
+        with:
+          source-dir: work/stage/BitwardenPortable
+          output-dir: dist
+          engine: custom-nsis
+          running-exe: App/Bitwarden/Bitwarden.exe
+          timeout-seconds: '1800'
+          package-revision: b1r1-pkgonly
+      - name: Verify compiled installer and embedded payload
+        env:
+          INSTALL_FILE: ${{ steps.installer.outputs.installer-file }}
+          INSTALL_SHA: ${{ steps.installer.outputs.installer-sha256 }}
+        run: |
+          python scripts/validate_installer.py --file "$env:INSTALL_FILE" --sha256 "$env:INSTALL_SHA"
+          if ($LASTEXITCODE -ne 0) { throw 'Installer validation failed' }
+      - name: Publisher dry run
+        uses: vhick/portable-release-publisher@cb64f86ac2d8c67506db5832de07f9ff58cbeaeb
+        with:
+          files: 'dist/*.paf.exe'
+          tag: ${{ inputs.new_release_tag }}
+          release-title: 'Bitwarden PortableApps packaging only: ${{ inputs.source_release_tag }}'
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'true'
+      - name: Publish only validated installer
+        uses: vhick/portable-release-publisher@cb64f86ac2d8c67506db5832de07f9ff58cbeaeb
+        with:
+          files: 'dist/*.paf.exe'
+          tag: ${{ inputs.new_release_tag }}
+          release-title: 'Bitwarden PortableApps packaging only: ${{ inputs.source_release_tag }}'
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'false'

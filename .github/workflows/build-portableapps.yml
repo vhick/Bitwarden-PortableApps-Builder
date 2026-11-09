@@ -1,0 +1,178 @@
+name: Bitwarden Desktop - Build PortableApps ZIP and Installer
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'latest or stable X.Y.Z (e.g. 2026.10.4)'
+        type: string
+        required: true
+        default: latest
+
+permissions:
+  contents: read
+concurrency:
+  group: bitwarden-portable-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: '1'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      GITHUB_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout this independent builder repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate application-specific Python logic before downloading vendor image
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          if ($LASTEXITCODE -ne 0) { throw 'Builder regression tests failed' }
+
+      - name: Resolve stable desktop release, source commit and hash
+        run: |
+          python scripts/resolve.py --version '${{ inputs.version }}' --output work/identity.json
+          if ($LASTEXITCODE -ne 0) { throw 'Stable Bitwarden desktop resolution failed' }
+
+      - name: Refuse duplicate publication before download
+        id: preflight
+        run: |
+          python scripts/preflight.py --identity work/identity.json
+          if ($LASTEXITCODE -ne 0) { throw 'Release preflight failed' }
+
+      - name: Verify available build tools
+        if: steps.preflight.outputs.exists != 'true'
+        run: |
+          dotnet --info
+          if ($LASTEXITCODE -ne 0) { throw '.NET SDK required for NativeAOT' }
+          $seven = 'C:\Program Files\7-Zip\7z.exe'
+          if (!(Test-Path -LiteralPath $seven)) {
+            choco install 7zip --yes --no-progress --limit-output
+            if ($LASTEXITCODE -ne 0) { throw '7zip setup failed' }
+          }
+
+      - name: Compile genuine Windows x64 NativeAOT PortableApps root launcher
+        if: steps.preflight.outputs.exists != 'true'
+        run: |
+          dotnet publish launcher/BitwardenPortable/BitwardenPortable.csproj `
+            -c Release -r win-x64 -p:PublishAot=true -p:SelfContained=true -o work/launcher
+          if ($LASTEXITCODE -ne 0) { throw 'NativeAOT PE compilation failed' }
+          if (!(Test-Path 'work/launcher/BitwardenPortable.exe')) { throw 'Compiled launcher missing' }
+          & 'work/launcher/BitwardenPortable.exe' --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'Compiled launcher self test failed' }
+
+      - name: Download and SHA256-verify official Windows portable Bitwarden image
+        if: steps.preflight.outputs.exists != 'true'
+        run: |
+          python scripts/download.py --identity work/identity.json --outdir work/downloads
+          if ($LASTEXITCODE -ne 0) { throw 'Official release asset verification failed' }
+
+      - name: Extract official Windows application, stage PortableApps folder
+        if: steps.preflight.outputs.exists != 'true'
+        run: |
+          python scripts/stage.py --identity work/identity.json --downloads work/downloads `
+            --work work --launcher work/launcher/BitwardenPortable.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Bitwarden portable staging failed' }
+          & scripts/make_icons.ps1 -SourceExe 'work/BitwardenPortable/App/Bitwarden/Bitwarden.exe' `
+            -AppInfo 'work/BitwardenPortable/App/AppInfo'
+          if ($LASTEXITCODE -ne 0) { throw 'Vendor icon extraction failed' }
+          Get-AuthenticodeSignature -FilePath 'work/BitwardenPortable/App/Bitwarden/Bitwarden.exe' | `
+            Select-Object Status,StatusMessage,SignerCertificate | Format-List
+
+      - name: Validate independent ZIP before invoking shared installer builder
+        if: steps.preflight.outputs.exists != 'true'
+        run: |
+          python scripts/validate.py --root work/BitwardenPortable --identity work/identity.json `
+            --dist dist --builder-sha $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Independent ZIP validation failed' }
+
+      # Tag v1.0.0 was verified at immutable commit 0112c35580e83b37eb8757ebcb949274e1631a04.
+      - name: Build separate independent NSIS PortableApps-style installer
+        if: steps.preflight.outputs.exists != 'true'
+        id: installer
+        continue-on-error: true
+        uses: vhick/Portable-Package-Builder@0112c35580e83b37eb8757ebcb949274e1631a04
+        with:
+          source-dir: work/BitwardenPortable
+          output-dir: dist
+          engine: custom-nsis
+          running-exe: App/Bitwarden/Bitwarden.exe
+          timeout-seconds: '1800'
+          package-revision: b1r1
+
+      - name: Independently verify shared installer file and embedded payload
+        if: steps.preflight.outputs.exists != 'true' && steps.installer.outcome == 'success'
+        id: installer_verify
+        continue-on-error: true
+        env:
+          INSTALL_FILE: ${{ steps.installer.outputs.installer-file }}
+          INSTALL_SHA: ${{ steps.installer.outputs.installer-sha256 }}
+        run: |
+          python scripts/validate_installer.py --file "$env:INSTALL_FILE" --sha256 "$env:INSTALL_SHA"
+          if ($LASTEXITCODE -ne 0) { throw 'Independent NSIS installer inspection failed' }
+
+      - name: Report installer failure without destroying validated ZIP
+        if: steps.preflight.outputs.exists != 'true' && (steps.installer.outcome != 'success' || steps.installer_verify.outcome != 'success')
+        run: |
+          Write-Warning 'Installer FAILED or was not independently verified. Validated ZIP is preserved and may still be published.'
+
+      # Tag v1.1.1 was verified at immutable commit cb64f86ac2d8c67506db5832de07f9ff58cbeaeb.
+      - name: Release dry-run - full validated ZIP plus installer
+        if: steps.preflight.outputs.exists != 'true' && steps.installer_verify.outcome == 'success'
+        uses: vhick/portable-release-publisher@cb64f86ac2d8c67506db5832de07f9ff58cbeaeb
+        with:
+          files: 'dist/*.zip;dist/*.paf.exe'
+          tag: ${{ steps.preflight.outputs.tag }}
+          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r1 (ZIP + installer)'
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'true'
+
+      - name: Release full validated ZIP plus installer
+        if: steps.preflight.outputs.exists != 'true' && steps.installer_verify.outcome == 'success'
+        uses: vhick/portable-release-publisher@cb64f86ac2d8c67506db5832de07f9ff58cbeaeb
+        with:
+          files: 'dist/*.zip;dist/*.paf.exe'
+          tag: ${{ steps.preflight.outputs.tag }}
+          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r1 (ZIP + installer)'
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'false'
+
+      - name: Release dry-run - ZIP only when installer fails
+        if: steps.preflight.outputs.exists != 'true' && steps.installer_verify.outcome != 'success'
+        uses: vhick/portable-release-publisher@cb64f86ac2d8c67506db5832de07f9ff58cbeaeb
+        with:
+          files: 'dist/*.zip'
+          tag: ${{ steps.preflight.outputs.tag }}
+          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r1 (ZIP only - installer not verified)'
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'true'
+
+      - name: Release validated ZIP only when installer fails
+        if: steps.preflight.outputs.exists != 'true' && steps.installer_verify.outcome != 'success'
+        uses: vhick/portable-release-publisher@cb64f86ac2d8c67506db5832de07f9ff58cbeaeb
+        with:
+          files: 'dist/*.zip'
+          tag: ${{ steps.preflight.outputs.tag }}
+          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r1 (ZIP only - installer not verified)'
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'false'
+
+      - name: Mark partial outcome correctly
+        if: steps.preflight.outputs.exists != 'true' && (steps.installer.outcome != 'success' || steps.installer_verify.outcome != 'success')
+        run: |
+          throw 'Partial success: independently verified ZIP published, but installer generation/validation FAILED.'

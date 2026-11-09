@@ -1,0 +1,8 @@
+/work/
+/dist/
+/.upb-tool/
+__pycache__/
+*.pyc
+*.partial
+.vs/
+.idea/
