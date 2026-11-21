@@ -1,14 +1,14 @@
-name: Bitwarden - Packaging Only from Previously Validated ZIP
+name: Bitwarden OSS - Packaging Only from Previously Validated ZIP
 on:
   workflow_dispatch:
     inputs:
       source_release_tag:
         type: string
-        description: 'Existing release tag in THIS builder repo (portable-bitwarden-v...)'
+        description: 'Existing OSS release tag in THIS builder repo (portable-bitwarden-oss-v... or legacy b1r2 OSS)'
         required: true
       source_zip_filename:
         type: string
-        description: 'Exact BitwardenPortable_*.zip from source release'
+        description: 'Exact verified OSS BitwardenPortable_*.zip from source release'
         required: true
       source_zip_sha256:
         type: string
@@ -22,7 +22,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: bitwarden-package-only-${{ github.ref }}
+  group: bitwarden-oss-package-only-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -49,7 +49,7 @@ jobs:
           SOURCE_SHA: ${{ inputs.source_zip_sha256 }}
           OUTPUT_TAG: ${{ inputs.new_release_tag }}
         run: |
-          if ($env:SOURCE_TAG -notmatch '^portable-bitwarden-v[A-Za-z0-9_.-]+$') { throw 'Use only a release from this builder' }
+          if ($env:SOURCE_TAG -notmatch '^portable-bitwarden-(?:oss-v|v)[A-Za-z0-9_.-]+$') { throw 'Use only a release from this builder' }
           if ($env:SOURCE_NAME -notmatch '^BitwardenPortable_[A-Za-z0-9_.-]+\.zip$') { throw 'Invalid original ZIP filename' }
           if ($env:SOURCE_SHA -notmatch '^[0-9a-fA-F]{64}$') { throw 'SHA256 required' }
           if ($env:OUTPUT_TAG -notmatch '^portable-bitwarden-installer-[A-Za-z0-9_.-]+$') { throw 'New installer tag invalid' }
@@ -84,7 +84,7 @@ jobs:
           engine: custom-nsis
           running-exe: 'App\Bitwarden\Bitwarden.exe'
           timeout-seconds: '1800'
-          package-revision: b1r2-pkgonly
+          package-revision: b1r3-oss-pkgonly
       - name: Verify compiled installer and embedded payload
         env:
           INSTALL_FILE: ${{ steps.installer.outputs.installer-file }}
@@ -97,7 +97,7 @@ jobs:
         with:
           files: 'dist/*.paf.exe'
           tag: ${{ inputs.new_release_tag }}
-          release-title: 'Bitwarden PortableApps packaging only: ${{ inputs.source_release_tag }}'
+          release-title: 'Bitwarden OSS PortableApps packaging only: ${{ inputs.source_release_tag }}'
           keep-releases: '3'
           prune: 'false'
           dry-run: 'true'
@@ -106,7 +106,7 @@ jobs:
         with:
           files: 'dist/*.paf.exe'
           tag: ${{ inputs.new_release_tag }}
-          release-title: 'Bitwarden PortableApps packaging only: ${{ inputs.source_release_tag }}'
+          release-title: 'Bitwarden OSS PortableApps packaging only: ${{ inputs.source_release_tag }}'
           keep-releases: '3'
           prune: 'false'
           dry-run: 'false'

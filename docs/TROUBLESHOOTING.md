@@ -1,3 +1,17 @@
+## b1r3 OSS-only filename change
+
+Bitwarden 2026.11.0 introduced **`oss-`** for the GPLv3 desktop downloads.
+`Bitwarden-Portable-2026.11.0.exe` is NOT the expected asset, and `bit-` means
+commercial, not OSS. The corrected resolver chooses
+`oss-Bitwarden-Portable-2026.11.0.exe`. For verified 2026.10.x builds the old
+unprefixed portable file is still OSS. If GitHub does not publish the exact
+OSS portable asset or a SHA-256 digest, the builder fails instead of falling
+back. Do not set a commercial release filename manually.
+
+When an existing validated ZIP is repackaged, `packaging_only.py` now checks
+that the embedded identity is specifically upstream OSS before installation.
+If the original ZIP is commercial or its origin metadata is ambiguous, stop.
+
 # Troubleshooting and status reporting
 
 ## Failure: GitHub API / release resolution

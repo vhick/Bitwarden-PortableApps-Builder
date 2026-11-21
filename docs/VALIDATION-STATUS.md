@@ -1,3 +1,12 @@
+# b1r3 OSS-only revision — November 21, 2026
+
+- SOURCE-INSPECTED: upstream release desktop-v2026.11.0 introduced oss-/bit- prefixes.
+- STATIC-VALIDATED: OSS-only filename/version cutoff regression tests, mocked end-to-end resolver selection with competing commercial asset, fail-closed identity guards, YAML and builder contract tests (see tests).
+- NOT YET VERIFIED: Windows NativeAOT compilation for b1r3, official OSS binary extraction on hosted Windows, packaged Windows GUI, installer, release publication, runtime/credential portability.
+- USER-CONFIRMED previous baseline: b1r2 (prior workflow, not b1r3 OSS change).
+
+---
+
 # Builder b1r2 validation status — 2026-11-09
 
 This status applies to the **builder kit files** prepared in this environment, not to a finished Bitwarden PortableApps release.

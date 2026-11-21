@@ -1,9 +1,9 @@
-name: Bitwarden Desktop - Build PortableApps ZIP and Installer
+name: Bitwarden Desktop OSS - Build PortableApps ZIP and Installer
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'latest or stable X.Y.Z (e.g. 2026.10.4)'
+        description: 'latest or stable X.Y.Z (e.g. 2026.11.0); GPLv3 OSS only'
         type: string
         required: true
         default: latest
@@ -11,7 +11,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: bitwarden-portable-${{ github.ref }}
+  group: bitwarden-oss-portable-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_*.py' -v
           if ($LASTEXITCODE -ne 0) { throw 'Builder regression tests failed' }
 
-      - name: Resolve stable desktop release, source commit and hash
+      - name: Resolve stable GPLv3 OSS desktop release, source commit and hash
         run: |
           python scripts/resolve.py --version '${{ inputs.version }}' --output work/identity.json
           if ($LASTEXITCODE -ne 0) { throw 'Stable Bitwarden desktop resolution failed' }
@@ -72,7 +72,7 @@ jobs:
           & 'work/launcher/BitwardenPortable.exe' --self-test
           if ($LASTEXITCODE -ne 0) { throw 'Compiled launcher self test failed' }
 
-      - name: Download and SHA256-verify official Windows portable Bitwarden image
+      - name: Download and SHA256-verify ONLY official OSS Windows portable Bitwarden image
         if: steps.preflight.outputs.exists != 'true'
         run: |
           python scripts/download.py --identity work/identity.json --outdir work/downloads
@@ -109,7 +109,7 @@ jobs:
           engine: custom-nsis
           running-exe: 'App\Bitwarden\Bitwarden.exe'
           timeout-seconds: '1800'
-          package-revision: b1r2
+          package-revision: b1r3
 
       - name: Independently verify shared installer file and embedded payload
         if: steps.preflight.outputs.exists != 'true' && steps.installer.outcome == 'success'
@@ -134,7 +134,7 @@ jobs:
         with:
           files: 'dist/*.zip;dist/*.paf.exe'
           tag: ${{ steps.preflight.outputs.tag }}
-          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r2 (ZIP + installer)'
+          release-title: 'Bitwarden Desktop OSS ${{ steps.preflight.outputs.version }} PortableApps b1r3 (ZIP + installer)'
           keep-releases: '3'
           prune: 'false'
           dry-run: 'true'
@@ -145,7 +145,7 @@ jobs:
         with:
           files: 'dist/*.zip;dist/*.paf.exe'
           tag: ${{ steps.preflight.outputs.tag }}
-          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r2 (ZIP + installer)'
+          release-title: 'Bitwarden Desktop OSS ${{ steps.preflight.outputs.version }} PortableApps b1r3 (ZIP + installer)'
           keep-releases: '3'
           prune: 'false'
           dry-run: 'false'
@@ -156,7 +156,7 @@ jobs:
         with:
           files: 'dist/*.zip'
           tag: ${{ steps.preflight.outputs.tag }}
-          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r2 (ZIP only - installer not verified)'
+          release-title: 'Bitwarden Desktop OSS ${{ steps.preflight.outputs.version }} PortableApps b1r3 (ZIP only - installer not verified)'
           keep-releases: '3'
           prune: 'false'
           dry-run: 'true'
@@ -167,7 +167,7 @@ jobs:
         with:
           files: 'dist/*.zip'
           tag: ${{ steps.preflight.outputs.tag }}
-          release-title: 'Bitwarden Desktop ${{ steps.preflight.outputs.version }} PortableApps b1r2 (ZIP only - installer not verified)'
+          release-title: 'Bitwarden Desktop OSS ${{ steps.preflight.outputs.version }} PortableApps b1r3 (ZIP only - installer not verified)'
           keep-releases: '3'
           prune: 'false'
           dry-run: 'false'

@@ -2,6 +2,7 @@
 """Extract a previously verified Bitwarden builder ZIP without upstream recompilation."""
 import argparse,hashlib,json,pathlib,re,stat,zipfile
 from validate import validate
+from oss_contract import assert_oss_identity
 
 def main(zip_path:pathlib.Path,sha256:str,destination:pathlib.Path):
     if not re.fullmatch('[0-9a-fA-F]{64}',sha256): raise RuntimeError('Provide exact source ZIP SHA-256 from original release')
@@ -20,6 +21,7 @@ def main(zip_path:pathlib.Path,sha256:str,destination:pathlib.Path):
     root=destination/'BitwardenPortable'
     info=root/'Other'/'Source'/'BUILD-IDENTITY.json'
     validate(root,info)
+    assert_oss_identity(json.loads(info.read_text(encoding='utf-8')))
     print('PACKAGING-ONLY SOURCE VALIDATED:',actual,'source release:',json.loads(info.read_text(encoding='utf-8'))['upstream_release_tag'])
 
 if __name__=='__main__':

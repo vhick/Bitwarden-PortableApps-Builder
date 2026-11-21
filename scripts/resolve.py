@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Resolve a verified Bitwarden DESKTOP stable release, with no main-branch fallback."""
+"""Resolve verified Bitwarden DESKTOP GPLv3 OSS releases; never select commercial assets."""
 from __future__ import annotations
+from oss_contract import oss_filename, assert_oss_identity, parse_version
 import argparse, hashlib, json, os, pathlib, re, sys, urllib.error, urllib.request
 
 BASE='https://api.github.com/repos/bitwarden/clients'
 VERSION=re.compile(r'^desktop-v(\d+)\.(\d+)\.(\d+)$')
-ASSET=re.compile(r'^Bitwarden-Portable-(\d+\.\d+\.\d+)\.exe$')
 
 
 def request(url: str, binary=False):
     if not url.startswith('https://api.github.com/') and not url.startswith('https://raw.githubusercontent.com/bitwarden/clients/'):
         raise ValueError('Unexpected source host: '+url)
-    headers={'Accept':'application/vnd.github+json','User-Agent':'Bitwarden-PortableApps-Builder-b1r2','X-GitHub-Api-Version':'2022-11-28'}
+    headers={'Accept':'application/vnd.github+json','User-Agent':'Bitwarden-OSS-PortableApps-Builder-b1r3','X-GitHub-Api-Version':'2022-11-28'}
     if os.environ.get('GITHUB_TOKEN'):
         headers['Authorization']='Bearer '+os.environ['GITHUB_TOKEN']
     try:
@@ -49,9 +49,9 @@ def choose_release(version:str):
 def resolve(version:str, output:pathlib.Path):
     release=choose_release(version)
     tag=release['tag_name']; ver=tag.removeprefix('desktop-v')
-    exact=f'Bitwarden-Portable-{ver}.exe'
+    exact=oss_filename(ver)  # Strict upstream OSS asset; NEVER select 'bit-' or 'commercial-'.
     assets=[a for a in release.get('assets',[]) if a.get('name')==exact]
-    if len(assets)!=1: raise RuntimeError(f'Expected one official Windows portable asset {exact}; found {len(assets)}')
+    if len(assets)!=1: raise RuntimeError(f'OSS-only: expected one official Windows OSS portable asset {exact}; found {len(assets)}. No commercial fallback.')
     asset=assets[0]
     digest=asset.get('digest','') or ''
     if not re.fullmatch('sha256:[0-9a-fA-F]{64}',digest):
@@ -65,12 +65,13 @@ def resolve(version:str, output:pathlib.Path):
     lock_hash=hashlib.sha256(request(lock_url,binary=True)).hexdigest()
     info={'application':'Bitwarden Desktop','version':ver,'upstream_repository':'bitwarden/clients',
           'upstream_release_tag':tag,'upstream_commit_sha':commit,'upstream_lockfile_sha256':lock_hash,
-          'asset_filename':exact,'distribution_flavor':'upstream-noncommercial-OSS-asset','asset_url':url,'asset_sha256':digest.split(':',1)[1].lower(),
+          'asset_filename':exact,'distribution_flavor':('upstream-oss-gplv3' if parse_version(ver)>=(2026,11,0) else 'upstream-noncommercial-OSS-asset'),'asset_url':url,'asset_sha256':digest.split(':',1)[1].lower(),
           'asset_size':asset.get('size'), 'release_id':release['id'],
           'release_published_at':release.get('published_at'),
-          'builder_revision':'b1r2','package_revision':'b1r2',
+          'builder_revision':'b1r3','package_revision':'b1r3',
           'package_builder':'vhick/Portable-Package-Builder@v1.0.0',
           'release_publisher':'vhick/portable-release-publisher@v1.1.1'}
+    assert_oss_identity(info)
     output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text(json.dumps(info,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
     print(f'Resolved {tag} / {commit}, SHA256 {info["asset_sha256"]}')

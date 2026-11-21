@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """Fail-safe duplicate publication check: 404 alone is a missing release."""
 import argparse,json,os,pathlib,re,urllib.error,urllib.request
+from oss_contract import assert_oss_identity
 
 def main(info:pathlib.Path):
     ident=json.loads(info.read_text(encoding='utf-8'))
+    assert_oss_identity(ident)
     repo=os.environ['GITHUB_REPOSITORY']
     sha=os.environ['GITHUB_SHA']
     if not re.fullmatch('[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',repo): raise RuntimeError('Invalid GitHub repository')
     if not re.fullmatch('[0-9a-f]{40}',sha): raise RuntimeError('Invalid builder SHA')
-    tag=f'portable-bitwarden-v{ident["version"]}-b1r2-{sha[:8]}'
+    tag=f'portable-bitwarden-oss-v{ident["version"]}-b1r3-{sha[:8]}'
     url=f'https://api.github.com/repos/{repo}/releases/tags/{tag}'
     req=urllib.request.Request(url,headers={'Accept':'application/vnd.github+json',
-       'Authorization':'Bearer '+os.environ['GITHUB_TOKEN'],'User-Agent':'Bitwarden-PortableApps-Builder-b1r2'})
+       'Authorization':'Bearer '+os.environ['GITHUB_TOKEN'],'User-Agent':'Bitwarden-OSS-PortableApps-Builder-b1r3'})
     try:
         with urllib.request.urlopen(req,timeout=35) as r: r.read(1024)
         skip='true'

@@ -1,3 +1,17 @@
+## OSS-only release selection — November 21, 2026
+
+- Official release notes: https://github.com/bitwarden/clients/releases/tag/desktop-v2026.11.0
+  distinguish `oss-` (GPLv3) from `bit-` (commercial) since 2026.11.0.
+- Source-inspected tagged `apps/desktop/electron-builder.json` still advertises
+  `win.target: [portable, nsis-web, appx]`, uses the portable filename base
+  `Bitwarden-Portable-${version}.exe`, and bundles `desktop_proxy.exe` and
+  other native helpers. The release pipeline applies the outer license prefix.
+- The 2026.10.4 unprefixed Windows portable file was the published OSS variant.
+- Resolver verifies OSS-only filename, exact official GitHub release location,
+  GitHub SHA-256 digest, source commit, and lockfile hash.
+- Not yet verified: Windows execution of v2026.11.0 OSS within this new package,
+  biometric/notification behaviour, browser coexistence, installer upgrade.
+
 # Bitwarden Desktop upstream audit — source inspected 2026-11-09
 
 Selected upstream: `bitwarden/clients` (not the archived `bitwarden/desktop`). Baseline stable release seen: `desktop-v2026.10.4` (commit short `94f7537`, published 2026-11-05). New CI builds resolve the then-latest stable desktop release and record its exact commit and vendor asset checksum; `latest` is not hardcoded.
@@ -5,7 +19,7 @@ Selected upstream: `bitwarden/clients` (not the archived `bitwarden/desktop`). B
 Source references, all under exact stable tag `desktop-v2026.10.4`:
 
 1. `apps/desktop/package.json` — Electron/Angular/TypeScript + Windows `pack:win`; actual native module under `desktop_native`. Windows Electron builder version is in `electron-builder.json`.
-2. `apps/desktop/electron-builder.json`: `win.target` includes `portable`, portable asset naming `Bitwarden-Portable-${version}.exe`, `win.extraFiles` includes browser desktop proxy; Windows protocol `bitwarden` is defined. The vendor's installer builds are distinct from portable release.
+2. `apps/desktop/electron-builder.json`: `win.target` includes `portable`, portable asset naming `oss-Bitwarden-Portable-${version}.exe` since desktop-v2026.11.0 (2026.10.x used the unprefixed OSS name), `win.extraFiles` includes browser desktop proxy; Windows protocol `bitwarden` is defined. The vendor's installer builds are distinct from portable release.
 3. `apps/desktop/src/main.ts`, lines 111-159: `BITWARDEN_APPDATA_DIR` wins over the upstream `PORTABLE_EXECUTABLE_DIR/bitwarden-appdata` fallback; `app.setPath('userData',...)`, `app.setPath('logs',path.join(...,'logs'))`, local state/log services use the profile path.
 4. `apps/desktop/src/main/native-messaging.main.ts`, lines 171-203, 422-436, 621-634: userData/browsers/ chrome + firefox manifests; per-user registry keys for `com.8bit.bitwarden` in Firefox, Chrome, Chromium, Edge, Vivaldi and Brave. The proxy path is relative to unpacked main executable; stable App/Bitwarden is therefore important.
 5. `apps/desktop/src/main/messaging.main.ts`, lines 22-28 and 110-124: startup settings regenerated at startup using Electron `setLoginItemSettings` on Windows.

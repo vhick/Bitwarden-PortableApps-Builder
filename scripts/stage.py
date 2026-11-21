@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Unpack official Electron-builder Windows portable image; assemble PortableApps staging."""
 from __future__ import annotations
+from oss_contract import assert_oss_identity
 import argparse, configparser, hashlib, json, os, pathlib, re, shutil, struct, subprocess, sys, urllib.request
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
@@ -60,13 +61,14 @@ def find_app(temp:pathlib.Path,dst:pathlib.Path):
 
 def get_official_text(commit:str,file:str):
     url=f'https://raw.githubusercontent.com/bitwarden/clients/{commit}/{file}'
-    with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'Bitwarden-PortableApps-Builder-b1r2'}),timeout=45) as r:
+    with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'Bitwarden-OSS-PortableApps-Builder-b1r3'}),timeout=45) as r:
         data=r.read(2*1024*1024)
     return data.decode('utf-8')
 
 
 def stage(identity_file:pathlib.Path,download_dir:pathlib.Path,work_dir:pathlib.Path,launch_exe:pathlib.Path):
     info=json.loads(identity_file.read_text(encoding='utf-8'))
+    assert_oss_identity(info)
     if not re.fullmatch(r'[a-f0-9]{40}',info['upstream_commit_sha']): raise RuntimeError('Invalid source commit')
     binary=download_dir/info['asset_filename']
     if not binary.exists(): raise RuntimeError('Official portable asset missing')
@@ -84,7 +86,7 @@ def stage(identity_file:pathlib.Path,download_dir:pathlib.Path,work_dir:pathlib.
     shutil.copy2(launch_exe,launcher)
     for rel in ['Data/Profile','Data/Temp','Data/TraceGuard','Other/Source','App/AppInfo']:
         (root/rel).mkdir(parents=True,exist_ok=True)
-    ini=f'''[Format]\nType=PortableApps.comFormat\nVersion=3.8\n\n[Details]\nName=Bitwarden Desktop Portable (Community)\nAppID=BitwardenDesktopCommunityPortable\nPublisher=Bitwarden Inc. (application); community builder (launcher)\nHomepage=https://github.com/bitwarden/clients\nCategory=Security\nDescription=Unofficial PortableApps-style package of the official Bitwarden Desktop app\nLanguage=Multilingual\n\n[License]\nShareable=true\nOpenSource=true\nFreeware=true\nCommercialUse=true\n\n[Version]\nPackageVersion={info['version']}.0\nDisplayVersion={info['version']} Community b1r2\n\n[Control]\nIcons=1\nStart=BitwardenPortable.exe\n'''
+    ini=f'''[Format]\nType=PortableApps.comFormat\nVersion=3.8\n\n[Details]\nName=Bitwarden Desktop OSS Portable (Community)\nAppID=BitwardenDesktopCommunityPortable\nPublisher=Bitwarden Inc. (application); community builder (launcher)\nHomepage=https://github.com/bitwarden/clients\nCategory=Security\nDescription=Unofficial PortableApps-style package of the official Bitwarden Desktop OSS (GPLv3) app\nLanguage=Multilingual\n\n[License]\nShareable=true\nOpenSource=true\nFreeware=true\nCommercialUse=true\n\n[Version]\nPackageVersion={info['version']}.0\nDisplayVersion={info['version']} OSS Community b1r3\n\n[Control]\nIcons=1\nStart=BitwardenPortable.exe\n'''
     (root/'App'/'AppInfo'/'appinfo.ini').write_text(ini,encoding='utf-8')
     # Source tree is not modified; preserve vendor license and source location.
     for filename in ('LICENSE.txt','LICENSE_GPL.txt','LICENSE_BITWARDEN.txt'):
@@ -94,21 +96,24 @@ def stage(identity_file:pathlib.Path,download_dir:pathlib.Path,work_dir:pathlib.
     shutil.copy2(ROOT/'licenses'/'LICENSE-launcher-MIT.txt',root/'Other'/'Source'/'LICENSE-launcher-MIT.txt')
     (root/'Other'/'Source'/'BUILD-IDENTITY.json').write_text(json.dumps(info,indent=2)+'\n',encoding='utf-8')
     (root/'Other'/'Source'/'README.txt').write_text(
-        'Unofficial Bitwarden PortableApps-style community package.\n'
+        'Unofficial Bitwarden OSS (GPLv3) PortableApps-style community package.\n'
         'Application source: https://github.com/bitwarden/clients/tree/'+info['upstream_commit_sha']+'/apps/desktop\n'
-        'Vendor portable original: '+info['asset_url']+'\n'
+        'Official upstream OSS portable original: '+info['asset_url']+'\n'
         'Launcher: MIT-licensed source included in this folder.\n'
-        'Application licensing: see upstream LICENSE files here. The software and logo are Bitwarden-owned.\n'
+        'OSS desktop edition: upstream GPLv3 release; see LICENSE_GPL.txt and upstream license notices.\n'
+        'The included monorepo license notices do NOT imply that commercial code is bundled in this OSS binary.\n'
+        'The Bitwarden software, name and logo are Bitwarden-owned.\n'
         'Portable settings: Data\\Profile; logs: Data\\Profile\\logs.\n'
         'Installed Bitwarden profiles are NEVER imported, deleted, or edited by this community launcher.\n'
         'ShellGuard: narrowly snapshots 6 browser native messaging keys and the Bitwarden user Run value.\n'
         'Do not use browser integration/autostart on a USB drive that moves often without retesting.\n',encoding='utf-8')
     (root/'README.txt').write_text(
-        'BITWARDEN DESKTOP PORTABLE (COMMUNITY, UNOFFICIAL)\n\n'
+        'BITWARDEN DESKTOP OSS PORTABLE (GPLv3, COMMUNITY, UNOFFICIAL)\n\n'
         'Run BitwardenPortable.exe. Vault data is stored in Data\\Profile.\n'
+        'OSS-only: uses an official GPLv3 Bitwarden Desktop asset, not the bit-/commercial- build.\n'
         'To quit: use the Bitwarden tray icon > Quit, then eject USB drive.\n'
         'Do not run the same portable folder from two Windows sessions simultaneously.\n'
-        'Upgrade: BACK UP Data first. Replace App, AppInfo, Other, root launcher; NEVER DELETE Data.\n'
+        'Upgrade from b1r2: CLOSE app, BACK UP entire Data, then replace App, AppInfo, Other, root launcher; NEVER DELETE Data.\n'
         'Launch logs and cautious registry recovery: Data\\TraceGuard.\n'
         'Browser integration, startup settings, Windows notifications, biometrics and OS caches may involve host state.\n'
         'This is not an official Bitwarden or PortableApps.com distribution.\n'

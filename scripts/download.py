@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Download exactly the official GitHub release asset and verify SHA-256."""
 import argparse, hashlib, json, pathlib, urllib.request
+from oss_contract import assert_oss_identity
 
 def download(identity:pathlib.Path,outdir:pathlib.Path):
     info=json.loads(identity.read_text(encoding='utf-8'))
+    assert_oss_identity(info)
     filename=info['asset_filename']
     expected=f'https://github.com/bitwarden/clients/releases/download/{info["upstream_release_tag"]}/{filename}'
     if info['asset_url']!=expected: raise ValueError('Untrusted asset URL')
@@ -13,7 +15,7 @@ def download(identity:pathlib.Path,outdir:pathlib.Path):
     if dest.is_file() and hashlib.sha256(dest.read_bytes()).hexdigest()==info['asset_sha256']:
         print('Official download already verified:',dest);return dest
     tmp=dest.with_suffix('.partial'); sha=hashlib.sha256(); size=0
-    req=urllib.request.Request(info['asset_url'],headers={'User-Agent':'Bitwarden-PortableApps-Builder-b1r2','Accept':'application/octet-stream'})
+    req=urllib.request.Request(info['asset_url'],headers={'User-Agent':'Bitwarden-OSS-PortableApps-Builder-b1r3','Accept':'application/octet-stream'})
     try:
         with urllib.request.urlopen(req,timeout=150) as response, tmp.open('wb') as f:
             for chunk in iter(lambda:response.read(4*1024*1024),b''):

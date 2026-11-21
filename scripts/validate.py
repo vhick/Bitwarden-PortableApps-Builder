@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Independent layout, integrity, version, PE and upgrade-safety validation."""
 import argparse, configparser, hashlib, json, pathlib, re, struct, sys, zipfile
+from oss_contract import assert_oss_identity
 
 def pe_arch(p):
     with p.open('rb') as f:
@@ -12,6 +13,7 @@ def pe_arch(p):
 
 def validate(root:pathlib.Path,identity:pathlib.Path):
     j=json.loads(identity.read_text(encoding='utf-8'))
+    assert_oss_identity(j)
     assert root.name=='BitwardenPortable','wrong root folder name'
     app=root/'App'/'Bitwarden';info=root/'App'/'AppInfo'
     assert pe_arch(root/'BitwardenPortable.exe')==0x8664,'root launcher must be x64 real PE'
@@ -35,12 +37,15 @@ def validate(root:pathlib.Path,identity:pathlib.Path):
     source=json.loads((root/'Other'/'Source'/'BUILD-IDENTITY.json').read_text(encoding='utf-8'))
     assert source['upstream_commit_sha']==j['upstream_commit_sha']
     assert source['asset_sha256']==j['asset_sha256']
+    assert_oss_identity(source)
+    assert source['asset_filename']==j['asset_filename']
+    assert source['distribution_flavor']==j['distribution_flavor']
     print('STATIC-VALIDATED: upstream x64 app, genuine launcher, proxy, icons, metadata, source identity, directories.')
 
 
 def produce_zip(root:pathlib.Path,dist:pathlib.Path,version:str,buildsha:str):
     dist.mkdir(exist_ok=True,parents=True)
-    name=f'BitwardenPortable_{version}_x64_b1r2_{buildsha[:8]}.zip'
+    name=f'BitwardenPortable_OSS_{version}_x64_b1r3_{buildsha[:8]}.zip'
     out=dist/name
     with zipfile.ZipFile(out,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=6,allowZip64=True) as z:
         for child in sorted(root.rglob('*')):
